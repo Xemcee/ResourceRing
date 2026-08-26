@@ -8,6 +8,7 @@
 @property NSPoint dragStart;
 @property NSPoint windowStart;
 @property BOOL didDrag;
+@property double backgroundShade;
 @end
 
 @implementation RingView
@@ -65,8 +66,22 @@
     NSMenu *menu = [NSMenu new];
     NSMenuItem *open = [[NSMenuItem alloc] initWithTitle:@"Open Activity Monitor" action:@selector(openActivityMonitor:) keyEquivalent:@""];
     open.target = self; [menu addItem:open]; [menu addItem:NSMenuItem.separatorItem];
+    NSView *shadeView = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, 210, 48)];
+    NSTextField *label = [NSTextField labelWithString:@"Background shade"];
+    label.frame = NSMakeRect(14, 27, 182, 16); label.font = [NSFont menuFontOfSize:12];
+    NSSlider *slider = [NSSlider sliderWithValue:self.backgroundShade minValue:.08 maxValue:.90 target:self action:@selector(shadeChanged:)];
+    slider.frame = NSMakeRect(12, 3, 186, 24); slider.continuous = YES;
+    [shadeView addSubview:label]; [shadeView addSubview:slider];
+    NSMenuItem *shadeItem = [NSMenuItem new]; shadeItem.view = shadeView; [menu addItem:shadeItem];
+    [menu addItem:NSMenuItem.separatorItem];
     NSMenuItem *quit = [[NSMenuItem alloc] initWithTitle:@"Quit ResourceRing" action:@selector(terminate:) keyEquivalent:@""];
     quit.target = NSApp; [menu addItem:quit]; return menu;
+}
+- (void)shadeChanged:(NSSlider *)sender {
+    self.backgroundShade = sender.doubleValue;
+    NSView *background = self.window.contentView;
+    background.layer.backgroundColor = [NSColor colorWithCalibratedWhite:self.backgroundShade alpha:.58].CGColor;
+    [[NSUserDefaults standardUserDefaults] setDouble:self.backgroundShade forKey:@"backgroundShade"];
 }
 - (void)openActivityMonitor:(id)sender {
     NSURL *url = [NSURL fileURLWithPath:@"/System/Applications/Utilities/Activity Monitor.app"];
@@ -91,11 +106,20 @@
     self.panel = [[NSPanel alloc] initWithContentRect:rect styleMask:NSWindowStyleMaskBorderless|NSWindowStyleMaskNonactivatingPanel backing:NSBackingStoreBuffered defer:NO];
     self.panel.level = NSFloatingWindowLevel;
     self.panel.collectionBehavior = NSWindowCollectionBehaviorCanJoinAllSpaces|NSWindowCollectionBehaviorFullScreenAuxiliary|NSWindowCollectionBehaviorStationary;
-    self.panel.opaque = NO; self.panel.backgroundColor = NSColor.clearColor; self.panel.hasShadow = YES;
-    NSVisualEffectView *background = [[NSVisualEffectView alloc] initWithFrame:rect];
-    background.material = NSVisualEffectMaterialHUDWindow; background.state = NSVisualEffectStateActive;
-    background.wantsLayer = YES; background.layer.cornerRadius = 27; background.layer.masksToBounds = YES;
-    self.ring = [[RingView alloc] initWithFrame:rect]; [background addSubview:self.ring]; self.panel.contentView = background;
+    self.panel.opaque = NO; self.panel.backgroundColor = NSColor.clearColor; self.panel.hasShadow = NO;
+    NSView *background = [[NSView alloc] initWithFrame:rect];
+    background.wantsLayer = YES;
+    NSNumber *savedShade = [[NSUserDefaults standardUserDefaults] objectForKey:@"backgroundShade"];
+    double initialShade = savedShade ? savedShade.doubleValue : .48;
+    background.layer.backgroundColor = [NSColor colorWithCalibratedWhite:initialShade alpha:.58].CGColor;
+    background.layer.cornerRadius = 27;
+    background.layer.shadowColor = NSColor.blackColor.CGColor;
+    background.layer.shadowOpacity = .16;
+    background.layer.shadowRadius = 7;
+    background.layer.shadowOffset = NSMakeSize(0, -2);
+    background.layer.shadowPath = CGPathCreateWithEllipseInRect(CGRectInset(NSRectToCGRect(rect), 2, 2), NULL);
+    self.ring = [[RingView alloc] initWithFrame:rect]; self.ring.backgroundShade = initialShade;
+    [background addSubview:self.ring]; self.panel.contentView = background;
     __weak AppDelegate *weakSelf = self;
     self.ring.hoverChanged = ^(BOOL inside) { inside ? [weakSelf showInfo] : [weakSelf hideInfo]; };
     [self makeInfoPanel];
