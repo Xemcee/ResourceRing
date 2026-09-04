@@ -58,7 +58,14 @@
     [self.window setFrameOrigin:NSMakePoint(self.windowStart.x+dx, self.windowStart.y+dy)];
 }
 - (void)mouseUp:(NSEvent *)event {
-    if (self.didDrag) return;
+    if (self.didDrag) {
+        NSPoint position = self.window.frame.origin;
+        NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
+        [defaults setDouble:position.x forKey:@"windowPositionX"];
+        [defaults setDouble:position.y forKey:@"windowPositionY"];
+        [defaults setBool:YES forKey:@"hasSavedWindowPosition"];
+        return;
+    }
     NSURL *url = [NSURL fileURLWithPath:@"/System/Applications/Utilities/Activity Monitor.app"];
     [[NSWorkspace sharedWorkspace] openApplicationAtURL:url configuration:[NSWorkspaceOpenConfiguration configuration] completionHandler:nil];
 }
@@ -144,8 +151,27 @@
 }
 - (void)hideInfo { [self.infoPanel orderOut:nil]; }
 - (void)reposition {
-    NSScreen *screen = NSScreen.mainScreen ?: NSScreen.screens.firstObject; NSRect frame = screen.visibleFrame;
-    [self.panel setFrameOrigin:NSMakePoint(NSMaxX(frame)-70, NSMaxY(frame)-70)];
+    NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
+    BOOL hasSavedPosition = [defaults boolForKey:@"hasSavedWindowPosition"];
+    NSScreen *screen = NSScreen.mainScreen ?: NSScreen.screens.firstObject;
+    NSPoint position;
+
+    if (hasSavedPosition) {
+        position = NSMakePoint([defaults doubleForKey:@"windowPositionX"], [defaults doubleForKey:@"windowPositionY"]);
+        NSPoint center = NSMakePoint(position.x + NSWidth(self.panel.frame) / 2, position.y + NSHeight(self.panel.frame) / 2);
+        for (NSScreen *candidate in NSScreen.screens) {
+            if (NSPointInRect(center, candidate.frame)) { screen = candidate; break; }
+        }
+    } else {
+        NSRect frame = screen.visibleFrame;
+        CGFloat margin = 16;
+        position = NSMakePoint(NSMaxX(frame) - NSWidth(self.panel.frame) - margin, NSMinY(frame) + margin);
+    }
+
+    NSRect visible = screen.visibleFrame;
+    position.x = MAX(NSMinX(visible), MIN(position.x, NSMaxX(visible) - NSWidth(self.panel.frame)));
+    position.y = MAX(NSMinY(visible), MIN(position.y, NSMaxY(visible) - NSHeight(self.panel.frame)));
+    [self.panel setFrameOrigin:position];
 }
 - (double)cpuUsage {
     host_cpu_load_info_data_t info; mach_msg_type_number_t count = HOST_CPU_LOAD_INFO_COUNT;
