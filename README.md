@@ -25,7 +25,7 @@ chmod +x build.sh
 open ResourceRing.app
 ```
 
-It initially appears in the bottom-right corner and stays visible across Spaces and full-screen apps. After you drag it, ResourceRing remembers that position between launches and display-layout changes.
+It initially appears at the true bottom-right edge of the display, level with the Dock, and stays visible across Spaces and full-screen apps. After you drag it, ResourceRing remembers that position between launches and display-layout changes.
 
 ## Controls
 

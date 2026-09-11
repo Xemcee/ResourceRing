@@ -152,6 +152,13 @@
 - (void)hideInfo { [self.infoPanel orderOut:nil]; }
 - (void)reposition {
     NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
+    NSInteger positionVersion = [defaults integerForKey:@"positionCoordinateVersion"];
+    if (positionVersion < 2) {
+        [defaults removeObjectForKey:@"hasSavedWindowPosition"];
+        [defaults removeObjectForKey:@"windowPositionX"];
+        [defaults removeObjectForKey:@"windowPositionY"];
+        [defaults setInteger:2 forKey:@"positionCoordinateVersion"];
+    }
     BOOL hasSavedPosition = [defaults boolForKey:@"hasSavedWindowPosition"];
     NSScreen *screen = NSScreen.mainScreen ?: NSScreen.screens.firstObject;
     NSPoint position;
@@ -163,14 +170,14 @@
             if (NSPointInRect(center, candidate.frame)) { screen = candidate; break; }
         }
     } else {
-        NSRect frame = screen.visibleFrame;
+        NSRect frame = screen.frame;
         CGFloat margin = 16;
         position = NSMakePoint(NSMaxX(frame) - NSWidth(self.panel.frame) - margin, NSMinY(frame) + margin);
     }
 
-    NSRect visible = screen.visibleFrame;
-    position.x = MAX(NSMinX(visible), MIN(position.x, NSMaxX(visible) - NSWidth(self.panel.frame)));
-    position.y = MAX(NSMinY(visible), MIN(position.y, NSMaxY(visible) - NSHeight(self.panel.frame)));
+    NSRect displayFrame = screen.frame;
+    position.x = MAX(NSMinX(displayFrame), MIN(position.x, NSMaxX(displayFrame) - NSWidth(self.panel.frame)));
+    position.y = MAX(NSMinY(displayFrame), MIN(position.y, NSMaxY(displayFrame) - NSHeight(self.panel.frame)));
     [self.panel setFrameOrigin:position];
 }
 - (double)cpuUsage {
